@@ -215,7 +215,8 @@ button:disabled {
   gap: 6px;
 }
 
-.entry-actions button {
+.entry-actions button,
+.entry-actions .button-link {
   font-size: 11px;
   padding: 6px 10px;
 }

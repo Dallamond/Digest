@@ -30,6 +30,8 @@
       <button id="summarizePage" class="primary">Resumir página</button>
       <button id="summarizeSelection">Resumir selección</button>
       <button id="addToQueue">+ Añadir a la cola</button>
+      <button id="importPdfBtn">📄 Importar PDF…</button>
+      <input type="file" id="pdfFileInput" accept="application/pdf" hidden />
     </div>
   </section>
 
@@ -40,17 +42,19 @@
       <strong id="resultTitle"></strong>
       <a id="resultUrl" href="#" target="_blank" rel="noopener"></a>
       <span id="resultProvider" class="provider-badge" hidden></span>
+      <span id="resultKind" class="provider-badge" hidden>📄 PDF</span>
     </div>
     <div id="resultText" class="md-content"></div>
     <div class="result-actions">
       <button id="copyBtn">Copiar</button>
       <button id="exportMdBtn">Exportar .md</button>
+      <a id="exportPdfLink" href="#" target="_blank" class="button-link">Exportar PDF</a>
     </div>
 
     <div id="flashcardsSection" hidden>
-      <div class="flashcards-title">Flashcards</div>
-      <div id="flashcardsList" class="flashcards-list"></div>
+      <div class="flashcards-title" id="flashcardsCount">Flashcards</div>
       <div class="result-actions">
+        <a id="useFlashcardsLink" href="#" target="_blank" class="button-link primary-link">Usar flashcards →</a>
         <button id="exportAnkiBtn">Exportar a Anki (CSV)</button>
       </div>
     </div>

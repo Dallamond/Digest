@@ -212,7 +212,8 @@ button:disabled {
   margin-top: 10px;
 }
 
-.result-actions button {
+.result-actions button,
+.result-actions .button-link {
   flex: 1;
 }
 

@@ -93,6 +93,13 @@ function renderHistory(entries) {
     date.textContent = new Date(entry.date).toLocaleString();
     metaRight.appendChild(date);
 
+    if (entry.kind === "pdf") {
+      const kindBadge = document.createElement("span");
+      kindBadge.className = "provider-badge";
+      kindBadge.textContent = "📄 PDF";
+      metaRight.appendChild(kindBadge);
+    }
+
     if (entry.providerLabel) {
       const badge = document.createElement("span");
       badge.className = "provider-badge";
@@ -108,7 +115,8 @@ function renderHistory(entries) {
     url.href = entry.url || "#";
     url.target = "_blank";
     url.rel = "noopener";
-    url.textContent = entry.url || "";
+    url.textContent = entry.url || "(archivo local, sin URL)";
+    if (!entry.url) url.addEventListener("click", (e) => e.preventDefault());
 
     const summary = document.createElement("div");
     summary.className = "entry-summary md-content";
@@ -129,14 +137,28 @@ function renderHistory(entries) {
     exportBtn.textContent = "Exportar .md";
     exportBtn.addEventListener("click", () => exportEntry(entry));
 
+    const exportPdfLink = document.createElement("a");
+    exportPdfLink.className = "button-link";
+    exportPdfLink.href = `print.html?id=${encodeURIComponent(entry.id)}`;
+    exportPdfLink.target = "_blank";
+    exportPdfLink.textContent = "Exportar PDF";
+
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Eliminar";
     deleteBtn.addEventListener("click", () => deleteEntry(entry.id));
 
     actions.appendChild(toggleBtn);
     actions.appendChild(exportBtn);
+    actions.appendChild(exportPdfLink);
 
     if (entry.flashcards && entry.flashcards.length > 0) {
+      const useLink = document.createElement("a");
+      useLink.className = "button-link primary-link";
+      useLink.href = `study.html?id=${encodeURIComponent(entry.id)}`;
+      useLink.target = "_blank";
+      useLink.textContent = "Usar flashcards →";
+      actions.appendChild(useLink);
+
       const ankiBtn = document.createElement("button");
       ankiBtn.textContent = "Flashcards → Anki";
       ankiBtn.addEventListener("click", () => exportAnki(entry));

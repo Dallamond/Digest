@@ -139,6 +139,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "digest-summarize-pdf-file") {
+    (async () => {
+      try {
+        const text = await extractPdfText(message.buffer);
+        const extracted = {
+          ok: true,
+          textContent: text.slice(0, 20000),
+          title: message.fileName || "PDF importado",
+          url: "",
+          kind: "pdf",
+        };
+        const result = await summarizeExtracted(extracted, "pdf-file", message.length, !!message.wantFlashcards);
+        sendResponse(result);
+      } catch (err) {
+        sendResponse({ ok: false, error: `No se pudo leer el PDF: ${String(err && err.message ? err.message : err)}` });
+      }
+    })();
+    return true;
+  }
+
   return false;
 });
 
@@ -203,6 +223,7 @@ async function summarizeExtracted(extracted, source, length, wantFlashcards) {
     title: extracted.title || "(sin título)",
     url: extracted.url || "",
     source,
+    kind: extracted.kind || "html",
     length,
     summary,
     flashcards,
@@ -232,8 +253,16 @@ async function extractFromTab(tabId, source) {
     return result;
   }
 
-  // source === "page": inyectamos Readability + el wrapper, y luego
-  // invocamos la función global que define para poder recoger su retorno.
+  // source === "page": si la pestaña está mostrando un PDF, el visor
+  // integrado de Chrome no es una página normal donde podamos inyectar
+  // Readability — en vez de eso, descargamos el propio PDF y lo pasamos
+  // por pdf.js (vía el documento offscreen). Si no es un PDF, extracción
+  // normal con Readability + el wrapper.
+  const tab = await chrome.tabs.get(tabId);
+  if (isPdfUrl(tab.url)) {
+    return extractPdfFromUrl(tab.url, tab.title);
+  }
+
   await chrome.scripting.executeScript({
     target: { tabId },
     files: ["vendor/Readability.js", "content-script.js"],
@@ -243,6 +272,75 @@ async function extractFromTab(tabId, source) {
     func: () => window.__digestExtractArticle(),
   });
   return result;
+}
+
+function isPdfUrl(url) {
+  if (!url) return false;
+  return /\.pdf(\?|#|$)/i.test(url);
+}
+
+async function extractPdfFromUrl(url, fallbackTitle) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`No se pudo descargar el PDF (${res.status}).`);
+    const buffer = await res.arrayBuffer();
+    const text = await extractPdfText(buffer);
+    return {
+      ok: true,
+      textContent: text.slice(0, 20000),
+      title: fallbackTitle || decodeURIComponent(url.split("/").pop() || "PDF"),
+      url,
+      kind: "pdf",
+    };
+  } catch (err) {
+    return { ok: false, error: `No se pudo leer el PDF: ${String(err && err.message ? err.message : err)}` };
+  }
+}
+
+// ---------- Extracción de PDF vía documento offscreen ----------
+// El service worker no tiene DOM, y pdf.js lo necesita — por eso la
+// extracción real ocurre en offscreen.js, y aquí solo orquestamos.
+
+let creatingOffscreen = null;
+
+async function ensureOffscreenDocument() {
+  if (chrome.runtime.getContexts) {
+    try {
+      const contexts = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] });
+      if (contexts && contexts.length > 0) return;
+    } catch (err) {
+      // getContexts no disponible en esta versión de Chrome — seguimos e intentamos crear igualmente.
+    }
+  }
+
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+    return;
+  }
+
+  creatingOffscreen = chrome.offscreen
+    .createDocument({
+      url: "offscreen.html",
+      reasons: ["WORKERS"],
+      justification: "pdf.js necesita un Worker y DOM para extraer el texto de un PDF, algo que el service worker no puede ofrecer.",
+    })
+    .catch((err) => {
+      // "Only a single offscreen document may be created" no es un error real
+      // si ya existe uno — cualquier otro error sí se propaga.
+      if (!String(err).includes("single offscreen")) throw err;
+    });
+
+  await creatingOffscreen;
+  creatingOffscreen = null;
+}
+
+async function extractPdfText(arrayBuffer) {
+  await ensureOffscreenDocument();
+  const response = await chrome.runtime.sendMessage({ type: "digest-offscreen-extract-pdf", buffer: arrayBuffer });
+  if (!response || !response.ok) {
+    throw new Error((response && response.error) || "No se pudo extraer texto del PDF.");
+  }
+  return response.text;
 }
 
 async function callLLM(text, length, config) {
@@ -343,6 +441,7 @@ async function addToQueue(tabId) {
     title: extracted.title || "(sin título)",
     url: extracted.url || "",
     textContent: extracted.textContent,
+    kind: extracted.kind || "html",
   };
 
   const { digestQueue } = await chrome.storage.local.get("digestQueue");
@@ -359,7 +458,7 @@ async function processQueueItem(id, length, wantFlashcards) {
   const item = queue.find((q) => q.id === id);
   if (!item) return { ok: false, error: "Ese elemento ya no está en la cola." };
 
-  const extracted = { ok: true, textContent: item.textContent, title: item.title, url: item.url };
+  const extracted = { ok: true, textContent: item.textContent, title: item.title, url: item.url, kind: item.kind || "html" };
   const result = await summarizeExtracted(extracted, "page", length, wantFlashcards);
 
   if (result.ok) {

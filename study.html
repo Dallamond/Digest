@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Digest — Flashcards</title>
+  <link rel="stylesheet" href="study.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="brand-dot"></span>
+      <h1>Digest — Flashcards</h1>
+    </div>
+    <a href="history.html" class="back-link">← Volver al historial</a>
+  </header>
+
+  <p id="sourceTitle" class="source-title"></p>
+
+  <section id="loadError" class="panel" hidden>
+    <p>No se encontraron flashcards para este resumen.</p>
+    <a href="history.html" class="back-link">Volver al historial</a>
+  </section>
+
+  <section id="studyPanel" class="panel" hidden>
+    <div class="progress-row">
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <span id="progressText" class="progress-text"></span>
+    </div>
+
+    <div id="card" class="card">
+      <div class="card-label" id="cardLabel">Pregunta</div>
+      <div id="cardQuestion" class="card-text"></div>
+      <div id="cardAnswer" class="card-text card-answer" hidden></div>
+    </div>
+
+    <div id="revealRow" class="button-row">
+      <button id="revealBtn" class="primary">Mostrar respuesta <span class="kbd">(espacio)</span></button>
+    </div>
+
+    <div id="assessRow" class="button-row" hidden>
+      <button id="dontKnowBtn" class="assess-btn assess-no">😕 No la sabía</button>
+      <button id="knowBtn" class="assess-btn assess-yes">😊 La sabía</button>
+    </div>
+  </section>
+
+  <section id="summaryPanel" class="panel" hidden>
+    <h2>Sesión completa</h2>
+    <p id="summaryText" class="summary-text"></p>
+    <div class="button-row">
+      <button id="retryFailedBtn">Repetir solo las falladas</button>
+      <button id="restartBtn">Repetir todas</button>
+      <a href="history.html" class="back-link button-link">Volver al historial</a>
+    </div>
+  </section>
+
+  <script src="study.js"></script>
+</body>
+</html>

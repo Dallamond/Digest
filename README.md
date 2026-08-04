@@ -13,8 +13,10 @@ Extensión de Chrome (Manifest V3) que resume páginas web con IA desde el propi
 - **Varios proveedores a la vez, con fallback automático**: puedes guardar más de uno (por ejemplo Gemini + Groq + OpenRouter) y ordenarlos por prioridad. Si el primero falla o está saturado, Digest prueba el siguiente de la lista solo, sin que tengas que hacer nada — el resumen final indica de qué proveedor vino.
 - El resumen se muestra con formato real (negrita, listas, encabezados) tanto en el popup como en el historial, en vez de texto plano con `**` sueltos.
 - Interfaz con la paleta e identidad visual de Shellpath (Nunito + JetBrains Mono, tema pastel, esquinas redondeadas), vendorizada localmente sin llamadas a fuentes externas.
-- **Modo Estudio**: marca la casilla "+ Flashcards" antes de resumir y, además del resumen, Digest genera 5 preguntas y respuestas sobre el contenido. Se muestran como tarjetas que revelan la respuesta al hacer clic, y se pueden exportar a CSV listo para importar en Anki.
+- **Modo Estudio**: marca la casilla "+ Flashcards" antes de resumir y, además del resumen, Digest genera 5 preguntas y respuestas sobre el contenido. Botón "Usar flashcards →" abre una pestaña nueva (`study.html`) con una sesión de estudio real: una tarjeta a la vez, revelas la respuesta, te autoevalúas (sabía / no sabía) y al final puedes repetir solo las que fallaste. También exportables a CSV para Anki.
 - **Cola de lectura**: botón "+ Añadir a la cola" (o desde el menú contextual) para guardar una página sin resumirla todavía — el texto se extrae en el momento, así que puedes cerrar la pestaña original. Desde la pestaña "Cola de lectura" del historial la resumes una a una o todas de golpe (procesamiento secuencial, para no saturar el proveedor gratuito de turno).
+- **Exportar a PDF**: botón "Exportar PDF" que abre una vista de impresión limpia (`print.html`) y dispara el diálogo nativo de Chrome — eliges "Guardar como PDF". Texto real y seleccionable, no una captura rasterizada.
+- **Importar PDF**: si la pestaña activa ya está mostrando un PDF, "Resumir página" lo detecta solo y lo procesa (descarga el PDF y extrae el texto con `pdf.js`, sin depender del visor interno de Chrome). También puedes importar cualquier PDF de tu equipo con el botón "📄 Importar PDF…" del popup, sin necesidad de tenerlo abierto en ninguna pestaña.
 
 ## Instalación (modo desarrollador)
 
@@ -62,8 +64,8 @@ El `manifest.json` declara `host_permissions` sobre `https://*/*` y `http://*/*`
 
 ## Roadmap
 
-Ver la nota de proyecto completa en el vault para el detalle de fases futuras: exportar a PDF, importar PDF y Word, resumen combinado de varias páginas a la vez, quiz interactivo, trazabilidad, texto a voz y traducción.
+Fase 2 completa. Ver la nota de proyecto en el vault para el detalle de Fase 3: importar Word, resumen combinado de varias páginas a la vez, quiz interactivo, trazabilidad, texto a voz y traducción.
 
 ## Licencia
 
-MIT — ver [LICENSE](LICENSE). Readability.js se distribuye bajo Apache 2.0 (ver cabecera del archivo en `vendor/Readability.js`). Tipografías vendorizadas en `vendor/fonts/`: Nunito (SIL Open Font License) y JetBrains Mono (Apache 2.0).
+MIT — ver [LICENSE](LICENSE). Readability.js se distribuye bajo Apache 2.0 (ver cabecera del archivo en `vendor/Readability.js`). Tipografías vendorizadas en `vendor/fonts/`: Nunito (SIL Open Font License) y JetBrains Mono (Apache 2.0). `pdf.js` (Mozilla) vendorizado en `vendor/pdfjs/`, licencia Apache 2.0.

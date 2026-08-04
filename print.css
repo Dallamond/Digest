@@ -1,0 +1,94 @@
+@import url("vendor/theme.css");
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--dg-font-ui);
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 28px 60px;
+  color: var(--dg-ink);
+  background: var(--dg-bg);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--dg-white);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius);
+  padding: 12px 16px;
+  margin-bottom: 28px;
+  box-shadow: var(--dg-shadow);
+  position: sticky;
+  top: 16px;
+}
+
+.toolbar .hint {
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 0;
+}
+
+#docTitle {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.doc-meta {
+  font-size: 12px;
+  font-family: var(--dg-font-mono);
+  color: var(--dg-ink);
+  opacity: 0.65;
+  margin: 0 0 24px;
+}
+
+#docSummary {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.doc-flashcards {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--dg-border);
+}
+
+.doc-flashcards h2 {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.doc-flashcards ol {
+  padding-left: 20px;
+}
+
+.doc-flashcards li {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.doc-flashcards .fc-a {
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+/* Al imprimir / exportar a PDF, ocultar la barra de herramientas y quitar
+   el fondo pastel para no gastar tinta/tóner en algo puramente decorativo. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+    padding: 0;
+    max-width: none;
+  }
+}

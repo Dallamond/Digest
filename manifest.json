@@ -25,7 +25,8 @@
     "activeTab",
     "scripting",
     "contextMenus",
-    "downloads"
+    "downloads",
+    "offscreen"
   ],
   "host_permissions": [
     "https://*/*",

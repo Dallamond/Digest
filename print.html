@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Digest — Exportar PDF</title>
+  <link rel="stylesheet" href="print.css" />
+</head>
+<body>
+  <div class="no-print toolbar">
+    <span class="hint">Se abre el diálogo de impresión de Chrome — elige "Guardar como PDF" en Destino.</span>
+    <button id="printBtn" class="primary">Guardar como PDF</button>
+  </div>
+
+  <main id="doc">
+    <h1 id="docTitle"></h1>
+    <p id="docMeta" class="doc-meta"></p>
+    <div id="docSummary" class="md-content"></div>
+    <div id="docFlashcards" class="doc-flashcards" hidden>
+      <h2>Flashcards</h2>
+      <ol id="docFlashcardsList"></ol>
+    </div>
+  </main>
+
+  <p id="loadError" class="hint" hidden>No se encontró ese resumen.</p>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="print.js"></script>
+</body>
+</html>

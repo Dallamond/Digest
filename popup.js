@@ -6,17 +6,22 @@ const els = {
   resultTitle: document.getElementById("resultTitle"),
   resultUrl: document.getElementById("resultUrl"),
   resultProvider: document.getElementById("resultProvider"),
+  resultKind: document.getElementById("resultKind"),
   resultText: document.getElementById("resultText"),
   summarizePage: document.getElementById("summarizePage"),
   summarizeSelection: document.getElementById("summarizeSelection"),
   addToQueue: document.getElementById("addToQueue"),
+  importPdfBtn: document.getElementById("importPdfBtn"),
+  pdfFileInput: document.getElementById("pdfFileInput"),
   wantFlashcards: document.getElementById("wantFlashcards"),
   flashcardsSection: document.getElementById("flashcardsSection"),
-  flashcardsList: document.getElementById("flashcardsList"),
+  flashcardsCount: document.getElementById("flashcardsCount"),
+  useFlashcardsLink: document.getElementById("useFlashcardsLink"),
   flashcardsError: document.getElementById("flashcardsError"),
   exportAnkiBtn: document.getElementById("exportAnkiBtn"),
   copyBtn: document.getElementById("copyBtn"),
   exportMdBtn: document.getElementById("exportMdBtn"),
+  exportPdfLink: document.getElementById("exportPdfLink"),
   openOptions: document.getElementById("openOptions"),
 };
 
@@ -29,6 +34,8 @@ async function init() {
   els.summarizePage.addEventListener("click", () => handleSummarize("page"));
   els.summarizeSelection.addEventListener("click", () => handleSummarize("selection"));
   els.addToQueue.addEventListener("click", handleAddToQueue);
+  els.importPdfBtn.addEventListener("click", () => els.pdfFileInput.click());
+  els.pdfFileInput.addEventListener("change", handleImportPdf);
   els.copyBtn.addEventListener("click", handleCopy);
   els.exportMdBtn.addEventListener("click", handleExport);
   els.exportAnkiBtn.addEventListener("click", handleExportAnki);
@@ -105,6 +112,41 @@ async function handleAddToQueue() {
   }
 }
 
+async function handleImportPdf(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ""; // permite reimportar el mismo archivo si hace falta
+  if (!file) return;
+
+  setButtonsDisabled(true);
+  els.importPdfBtn.disabled = true;
+  showStatus(`Leyendo "${file.name}"…`, false);
+  els.result.hidden = true;
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const response = await chrome.runtime.sendMessage({
+      type: "digest-summarize-pdf-file",
+      buffer,
+      fileName: file.name,
+      length: getSelectedLength(),
+      wantFlashcards: els.wantFlashcards.checked,
+    });
+
+    if (!response || !response.ok) {
+      showStatus((response && response.error) || "No se pudo procesar el PDF.", true);
+      return;
+    }
+
+    showResult(response.entry);
+    hideStatus();
+  } catch (err) {
+    showStatus(String(err && err.message ? err.message : err), true);
+  } finally {
+    setButtonsDisabled(false);
+    els.importPdfBtn.disabled = false;
+  }
+}
+
 function showResult(entry) {
   currentEntry = entry;
   els.resultTitle.textContent = entry.title || "(sin título)";
@@ -119,16 +161,19 @@ function showResult(entry) {
     els.resultProvider.hidden = true;
   }
 
+  els.resultKind.hidden = entry.kind !== "pdf";
+
+  els.exportPdfLink.href = `print.html?id=${encodeURIComponent(entry.id)}`;
+
   renderFlashcards(entry);
   els.result.hidden = false;
 }
 
 function renderFlashcards(entry) {
-  els.flashcardsList.innerHTML = "";
-
   if (entry.flashcards && entry.flashcards.length > 0) {
     els.flashcardsSection.hidden = false;
-    entry.flashcards.forEach((card) => els.flashcardsList.appendChild(buildFlashcardEl(card)));
+    els.flashcardsCount.textContent = `${entry.flashcards.length} flashcards generadas`;
+    els.useFlashcardsLink.href = `study.html?id=${encodeURIComponent(entry.id)}`;
   } else {
     els.flashcardsSection.hidden = true;
   }
@@ -139,25 +184,6 @@ function renderFlashcards(entry) {
   } else {
     els.flashcardsError.hidden = true;
   }
-}
-
-function buildFlashcardEl(card) {
-  const wrap = document.createElement("div");
-  wrap.className = "flashcard";
-
-  const q = document.createElement("div");
-  q.className = "flashcard-q";
-  q.textContent = card.q;
-
-  const a = document.createElement("div");
-  a.className = "flashcard-a";
-  a.textContent = card.a;
-
-  wrap.appendChild(q);
-  wrap.appendChild(a);
-  wrap.addEventListener("click", () => wrap.classList.toggle("revealed"));
-
-  return wrap;
 }
 
 // Renderiza el resumen como Markdown (negrita, listas, encabezados...) en
