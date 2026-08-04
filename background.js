@@ -1,7 +1,8 @@
 // Digest — background.js (service worker)
 // Orquesta: extracción de contenido de la pestaña activa, llamada al LLM
 // configurado por el usuario (con fallback entre varios proveedores si hay
-// más de uno guardado), e historial local. Sin backend propio.
+// más de uno guardado), historial local, flashcards (Modo Estudio) y cola
+// de lectura. Sin backend propio.
 
 const DEFAULT_PROVIDER = {
   provider: "openai",
@@ -19,6 +20,8 @@ const LENGTH_INSTRUCTIONS = {
     "Haz un resumen estructurado y más completo del texto, respetando en la medida de lo posible las secciones o el orden original del contenido. Usa subtítulos cortos en negrita si el contenido tiene partes claramente diferenciadas, y bullets dentro de cada una.",
 };
 
+const FLASHCARD_COUNT = 5;
+
 // ---------- Menú contextual ----------
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -32,14 +35,29 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Resumir esta página con Digest",
     contexts: ["page"],
   });
+  chrome.contextMenus.create({
+    id: "digest-queue-page",
+    title: "Añadir página a la cola de Digest",
+    contexts: ["page"],
+  });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) return;
+
+  if (info.menuItemId === "digest-queue-page") {
+    try {
+      await addToQueue(tab.id);
+    } catch (err) {
+      // Silencioso a propósito — no hay UI que mostrar desde un menú contextual.
+    }
+    return;
+  }
+
   const source = info.menuItemId === "digest-summarize-selection" ? "selection" : "page";
 
   try {
-    const result = await runSummarize(tab.id, source, "medio");
+    const result = await runSummarize(tab.id, source, "medio", false);
     await chrome.storage.session.set({ digestPending: result });
   } catch (err) {
     await chrome.storage.session.set({
@@ -58,7 +76,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// ---------- Mensajería con el popup / opciones ----------
+// ---------- Mensajería con el popup / opciones / historial ----------
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) return false;
@@ -71,13 +89,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ ok: false, error: "No se encontró la pestaña activa." });
           return;
         }
-        const result = await runSummarize(tab.id, message.source, message.length);
+        const result = await runSummarize(tab.id, message.source, message.length, !!message.wantFlashcards);
         sendResponse(result);
       } catch (err) {
         sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
       }
     })();
-    return true; // respuesta async
+    return true;
   }
 
   if (message.type === "digest-test-config") {
@@ -89,19 +107,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
       }
     })();
-    return true; // respuesta async
+    return true;
+  }
+
+  if (message.type === "digest-queue-add") {
+    (async () => {
+      try {
+        const tab = await getActiveTab();
+        if (!tab || !tab.id) {
+          sendResponse({ ok: false, error: "No se encontró la pestaña activa." });
+          return;
+        }
+        const item = await addToQueue(tab.id);
+        sendResponse({ ok: true, item });
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === "digest-queue-process") {
+    (async () => {
+      try {
+        const result = await processQueueItem(message.id, message.length, !!message.wantFlashcards);
+        sendResponse(result);
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
+      }
+    })();
+    return true;
   }
 
   return false;
 });
 
-// ---------- Lógica principal ----------
+// ---------- Lógica principal: resumen ----------
 
-async function runSummarize(tabId, source, length) {
+async function runSummarize(tabId, source, length, wantFlashcards) {
   const extracted = await extractFromTab(tabId, source);
   if (!extracted.ok) {
     return { ok: false, error: extracted.error || "No se pudo extraer contenido de la página." };
   }
+  return summarizeExtracted(extracted, source, length, wantFlashcards);
+}
+
+async function summarizeExtracted(extracted, source, length, wantFlashcards) {
   if (!extracted.textContent || extracted.textContent.trim().length < 20) {
     return {
       ok: false,
@@ -133,10 +184,17 @@ async function runSummarize(tabId, source, length) {
 
   if (!summary) {
     const detail = attempts.length ? `\n\n${attempts.join("\n")}` : "";
-    return {
-      ok: false,
-      error: `Todos los proveedores configurados fallaron.${detail}`,
-    };
+    return { ok: false, error: `Todos los proveedores configurados fallaron.${detail}` };
+  }
+
+  let flashcards = [];
+  let flashcardsError = null;
+  if (wantFlashcards) {
+    try {
+      flashcards = await generateFlashcards(extracted.textContent, usedProvider);
+    } catch (err) {
+      flashcardsError = String(err && err.message ? err.message : err);
+    }
   }
 
   const entry = {
@@ -147,6 +205,8 @@ async function runSummarize(tabId, source, length) {
     source,
     length,
     summary,
+    flashcards,
+    flashcardsError,
     providerLabel: usedProvider.label || usedProvider.provider,
     fallbackUsed: attempts.length > 0,
   };
@@ -191,6 +251,59 @@ async function callLLM(text, length, config) {
     "Eres un asistente que resume contenido web con precisión, sin inventar datos ni añadir opiniones propias. Responde siempre en el mismo idioma del texto original. Puedes usar Markdown (negrita, listas) cuando ayude a la claridad.";
   const userPrompt = `${instruction}\n\n---\n\n${text}`;
 
+  return chatCompletion(config, [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+}
+
+// ---------- Modo Estudio: flashcards ----------
+
+async function generateFlashcards(text, config) {
+  const systemPrompt =
+    "Eres un asistente que crea material de repaso a partir de un texto. Generas preguntas y respuestas claras y concisas, sin inventar información que no esté en el texto. Respondes siempre en el mismo idioma del texto original.";
+  const userPrompt =
+    `Genera exactamente ${FLASHCARD_COUNT} preguntas de repaso con su respuesta sobre el siguiente texto, de dificultad media (ni demasiado obvias ni demasiado rebuscadas). ` +
+    `Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, sin bloque de código, con este formato exacto: ` +
+    `[{"q":"pregunta","a":"respuesta"}, ...]\n\n---\n\n${text}`;
+
+  const raw = await chatCompletion(config, [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+
+  return parseFlashcardsJSON(raw);
+}
+
+function parseFlashcardsJSON(raw) {
+  // Los modelos a veces envuelven el JSON en un bloque ```json ... ``` pese
+  // a que se les pide que no lo hagan — lo limpiamos antes de parsear.
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (err) {
+    // Último intento: coger solo el primer array que aparezca en el texto.
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error("El modelo no devolvió un JSON de flashcards válido.");
+    parsed = JSON.parse(match[0]);
+  }
+
+  if (!Array.isArray(parsed)) throw new Error("El modelo no devolvió una lista de flashcards.");
+
+  return parsed
+    .filter((c) => c && (c.q || c.question) && (c.a || c.answer))
+    .map((c) => ({ q: String(c.q || c.question).trim(), a: String(c.a || c.answer).trim() }));
+}
+
+// ---------- Llamada genérica al proveedor (compatible OpenAI) ----------
+
+async function chatCompletion(config, messages) {
   const headers = { "Content-Type": "application/json" };
   if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
 
@@ -199,10 +312,7 @@ async function callLLM(text, length, config) {
     headers,
     body: JSON.stringify({
       model: config.model || DEFAULT_PROVIDER.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+      messages,
       temperature: 0.3,
     }),
   });
@@ -216,6 +326,48 @@ async function callLLM(text, length, config) {
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Respuesta del modelo vacía o con formato inesperado.");
   return content.trim();
+}
+
+// ---------- Cola de lectura ----------
+
+async function addToQueue(tabId) {
+  const extracted = await extractFromTab(tabId, "page");
+  if (!extracted.ok) throw new Error(extracted.error || "No se pudo extraer contenido de la página.");
+  if (!extracted.textContent || extracted.textContent.trim().length < 20) {
+    throw new Error("No se pudo extraer suficiente texto de esta página.");
+  }
+
+  const item = {
+    id: `q-${Date.now()}`,
+    dateAdded: new Date().toISOString(),
+    title: extracted.title || "(sin título)",
+    url: extracted.url || "",
+    textContent: extracted.textContent,
+  };
+
+  const { digestQueue } = await chrome.storage.local.get("digestQueue");
+  const queue = Array.isArray(digestQueue) ? digestQueue : [];
+  queue.unshift(item);
+  await chrome.storage.local.set({ digestQueue: queue });
+
+  return item;
+}
+
+async function processQueueItem(id, length, wantFlashcards) {
+  const { digestQueue } = await chrome.storage.local.get("digestQueue");
+  const queue = Array.isArray(digestQueue) ? digestQueue : [];
+  const item = queue.find((q) => q.id === id);
+  if (!item) return { ok: false, error: "Ese elemento ya no está en la cola." };
+
+  const extracted = { ok: true, textContent: item.textContent, title: item.title, url: item.url };
+  const result = await summarizeExtracted(extracted, "page", length, wantFlashcards);
+
+  if (result.ok) {
+    const remaining = queue.filter((q) => q.id !== id);
+    await chrome.storage.local.set({ digestQueue: remaining });
+  }
+
+  return result;
 }
 
 // ---------- Storage helpers ----------

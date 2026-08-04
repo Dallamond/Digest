@@ -68,6 +68,66 @@ button.danger {
   background: var(--dg-error-bg);
 }
 
+button.primary {
+  background: var(--dg-accent);
+  border-color: var(--dg-accent);
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- Pestañas ---------- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--dg-white);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius-sm);
+  padding: 3px;
+  margin-bottom: 18px;
+  width: fit-content;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  color: var(--dg-ink);
+  opacity: 0.7;
+}
+
+.tab-btn:hover {
+  box-shadow: none;
+  opacity: 1;
+}
+
+.tab-btn.active {
+  background: var(--dg-accent);
+  color: white;
+  opacity: 1;
+}
+
+.tab-count {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.tab-btn:not(.active) .tab-count {
+  background: var(--dg-bg-soft);
+  color: var(--dg-accent);
+}
+
 #searchInput {
   width: 100%;
   padding: 10px 12px;
@@ -161,6 +221,89 @@ button.danger {
 }
 
 #emptyMsg {
+  color: var(--dg-ink);
+  opacity: 0.6;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* ---------- Cola de lectura ---------- */
+
+.hint {
+  font-size: 12px;
+  color: var(--dg-ink);
+  opacity: 0.7;
+  line-height: 1.5;
+  margin-top: 0;
+}
+
+.queue-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--dg-white);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.flash-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.flash-toggle input {
+  accent-color: var(--dg-accent);
+}
+
+.length-selector-inline {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.length-selector-inline label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+#queueList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.queue-item {
+  background: var(--dg-white);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.queue-item-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--dg-ink);
+  opacity: 0.75;
+}
+
+.queue-item-status.error {
+  color: var(--dg-error);
+  opacity: 1;
+}
+
+#emptyQueueMsg {
   color: var(--dg-ink);
   opacity: 0.6;
   font-size: 13px;

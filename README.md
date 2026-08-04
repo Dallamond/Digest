@@ -13,6 +13,8 @@ Extensión de Chrome (Manifest V3) que resume páginas web con IA desde el propi
 - **Varios proveedores a la vez, con fallback automático**: puedes guardar más de uno (por ejemplo Gemini + Groq + OpenRouter) y ordenarlos por prioridad. Si el primero falla o está saturado, Digest prueba el siguiente de la lista solo, sin que tengas que hacer nada — el resumen final indica de qué proveedor vino.
 - El resumen se muestra con formato real (negrita, listas, encabezados) tanto en el popup como en el historial, en vez de texto plano con `**` sueltos.
 - Interfaz con la paleta e identidad visual de Shellpath (Nunito + JetBrains Mono, tema pastel, esquinas redondeadas), vendorizada localmente sin llamadas a fuentes externas.
+- **Modo Estudio**: marca la casilla "+ Flashcards" antes de resumir y, además del resumen, Digest genera 5 preguntas y respuestas sobre el contenido. Se muestran como tarjetas que revelan la respuesta al hacer clic, y se pueden exportar a CSV listo para importar en Anki.
+- **Cola de lectura**: botón "+ Añadir a la cola" (o desde el menú contextual) para guardar una página sin resumirla todavía — el texto se extrae en el momento, así que puedes cerrar la pestaña original. Desde la pestaña "Cola de lectura" del historial la resumes una a una o todas de golpe (procesamiento secuencial, para no saturar el proveedor gratuito de turno).
 
 ## Instalación (modo desarrollador)
 
@@ -60,7 +62,7 @@ El `manifest.json` declara `host_permissions` sobre `https://*/*` y `http://*/*`
 
 ## Roadmap
 
-Ver la nota de proyecto completa en el vault para el detalle de fases futuras: exportar a PDF, historial avanzado, **Modo Estudio** (preguntas y respuestas / flashcards), importar PDF y Word, resumen combinado de varias páginas a la vez, trazabilidad, texto a voz y traducción.
+Ver la nota de proyecto completa en el vault para el detalle de fases futuras: exportar a PDF, importar PDF y Word, resumen combinado de varias páginas a la vez, quiz interactivo, trazabilidad, texto a voz y traducción.
 
 ## Licencia
 

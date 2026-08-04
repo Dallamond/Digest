@@ -97,6 +97,20 @@ header button:hover {
   color: white;
 }
 
+.flash-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.flash-toggle input {
+  accent-color: var(--dg-accent);
+}
+
 .actions {
   display: flex;
   flex-direction: column;
@@ -205,6 +219,9 @@ button:disabled {
 footer {
   margin-top: 12px;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
 }
 
 footer a {
@@ -216,4 +233,13 @@ footer a {
 
 footer a:hover {
   text-decoration: underline;
+}
+
+.hint-error {
+  font-size: 11px;
+  color: var(--dg-error);
+  background: var(--dg-error-bg);
+  border-radius: var(--dg-radius-sm);
+  padding: 8px 10px;
+  margin-top: 10px;
 }

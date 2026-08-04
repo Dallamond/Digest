@@ -21,9 +21,15 @@
       <label><input type="radio" name="length" value="extenso" /> Extenso</label>
     </div>
 
+    <label class="flash-toggle">
+      <input type="checkbox" id="wantFlashcards" />
+      + Flashcards (Modo Estudio)
+    </label>
+
     <div class="actions">
       <button id="summarizePage" class="primary">Resumir página</button>
       <button id="summarizeSelection">Resumir selección</button>
+      <button id="addToQueue">+ Añadir a la cola</button>
     </div>
   </section>
 
@@ -40,10 +46,20 @@
       <button id="copyBtn">Copiar</button>
       <button id="exportMdBtn">Exportar .md</button>
     </div>
+
+    <div id="flashcardsSection" hidden>
+      <div class="flashcards-title">Flashcards</div>
+      <div id="flashcardsList" class="flashcards-list"></div>
+      <div class="result-actions">
+        <button id="exportAnkiBtn">Exportar a Anki (CSV)</button>
+      </div>
+    </div>
+    <div id="flashcardsError" class="hint-error" hidden></div>
   </section>
 
   <footer>
     <a id="viewHistory" href="history.html" target="_blank">Ver historial</a>
+    <a id="viewQueue" href="history.html#queue" target="_blank">Ver cola</a>
   </footer>
 
   <script src="vendor/marked.min.js"></script>

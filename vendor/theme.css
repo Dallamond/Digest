@@ -90,6 +90,59 @@
   color: var(--dg-accent);
 }
 
+/* ---------- Flashcards (Modo Estudio) ---------- */
+
+.flashcards-title {
+  font-size: 12px;
+  font-weight: 800;
+  margin: 14px 0 8px;
+  color: var(--dg-ink);
+}
+
+.flashcards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flashcard {
+  background: var(--dg-white);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.flashcard-q {
+  font-weight: 700;
+}
+
+.flashcard-q::before {
+  content: "P: ";
+  color: var(--dg-accent);
+}
+
+.flashcard-a {
+  display: none;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--dg-border);
+  color: var(--dg-ink);
+  opacity: 0.85;
+}
+
+.flashcard-a::before {
+  content: "R: ";
+  color: var(--dg-accent);
+  font-weight: 700;
+}
+
+.flashcard.revealed .flashcard-a {
+  display: block;
+}
+
 /* ---------- Badge de proveedor (qué IA respondió) ---------- */
 
 .provider-badge {

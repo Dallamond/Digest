@@ -9,18 +9,44 @@
   <header>
     <div class="title">
       <span class="brand-dot"></span>
-      <h1>Historial de resúmenes</h1>
+      <h1 id="pageTitle">Historial de resúmenes</h1>
     </div>
-    <div class="header-actions">
+    <div class="header-actions" id="historyActions">
       <button id="exportAllBtn">Exportar todo (JSON)</button>
       <button id="clearBtn" class="danger">Borrar historial</button>
     </div>
+    <div class="header-actions" id="queueActions" hidden>
+      <button id="processAllBtn" class="primary">Procesar toda la cola</button>
+    </div>
   </header>
 
-  <input id="searchInput" type="search" placeholder="Buscar por título o dominio…" />
+  <nav class="tabs">
+    <button class="tab-btn active" id="tabHistory" data-tab="history">Historial</button>
+    <button class="tab-btn" id="tabQueue" data-tab="queue">Cola de lectura <span id="queueCount" class="tab-count" hidden></span></button>
+  </nav>
 
-  <ul id="historyList"></ul>
-  <p id="emptyMsg" hidden>Todavía no has resumido nada.</p>
+  <section id="historyPanel">
+    <input id="searchInput" type="search" placeholder="Buscar por título o dominio…" />
+    <ul id="historyList"></ul>
+    <p id="emptyMsg" hidden>Todavía no has resumido nada.</p>
+  </section>
+
+  <section id="queuePanel" hidden>
+    <p class="hint">Páginas guardadas para resumir más tarde. El texto se extrajo al añadirlas, así que puedes cerrar la pestaña original sin problema.</p>
+    <div class="queue-controls">
+      <label class="flash-toggle">
+        <input type="checkbox" id="queueWantFlashcards" />
+        + Flashcards al procesar
+      </label>
+      <div class="length-selector-inline">
+        <label><input type="radio" name="queueLength" value="breve" /> Breve</label>
+        <label><input type="radio" name="queueLength" value="medio" checked /> Medio</label>
+        <label><input type="radio" name="queueLength" value="extenso" /> Extenso</label>
+      </div>
+    </div>
+    <ul id="queueList"></ul>
+    <p id="emptyQueueMsg" hidden>La cola está vacía. Añade páginas desde el popup ("+ Añadir a la cola") o desde el menú contextual.</p>
+  </section>
 
   <script src="vendor/marked.min.js"></script>
   <script src="history.js"></script>
