@@ -1,71 +1,159 @@
 # Digest — Resumidor con IA
 
-Extensión de Chrome (Manifest V3) que resume páginas web con IA desde el propio navegador. Sin backend propio: tú aportas tu API key (OpenAI, o cualquier endpoint compatible) o apuntas a un modelo local con [Ollama](https://ollama.com).
+Extensión de Chrome (Manifest V3) que convierte "leer algo → quedarte con lo importante → guardarlo o repasarlo" en un flujo que no sale del navegador. Resume páginas web, PDFs y selecciones de texto con la IA que tú elijas, genera flashcards para repasar, guarda cosas para más tarde en una cola de lectura, y exporta todo a Markdown, PDF o Anki.
 
-## Funcionalidades (v0.1 — MVP)
+Sin backend propio: tú aportas tu propia API key (OpenAI, Gemini, Groq, OpenRouter...) o apuntas a un modelo local con [Ollama](https://ollama.com). Nada se envía a ningún servidor de Digest, porque no existe tal servidor.
 
-- Resumir la página activa completa (extracción de contenido con [Readability.js](https://github.com/mozilla/readability), la misma librería del modo lectura de Firefox) o solo el texto seleccionado.
-- Tres niveles de longitud: **breve** (1-2 frases), **medio** (bullets) y **extenso** (resumen estructurado por secciones).
-- Menú contextual (clic derecho) para resumir selección o página sin abrir el popup primero.
-- Exportar cualquier resumen como Markdown con frontmatter YAML (título, URL, fecha), listo para pegar en Obsidian o cualquier otro sistema de notas.
-- Historial local de todos los resúmenes generados, con buscador, exportación individual o completa (JSON), y borrado.
-- Configuración por **proveedor** desde Opciones (OpenAI, Google Gemini, Groq, OpenRouter, Ollama local o Personalizado): eliges uno y el endpoint/modelo se rellenan solos, solo hace falta pegar la API key. Botón "Probar conexión" para validar antes de guardar.
-- **Varios proveedores a la vez, con fallback automático**: puedes guardar más de uno (por ejemplo Gemini + Groq + OpenRouter) y ordenarlos por prioridad. Si el primero falla o está saturado, Digest prueba el siguiente de la lista solo, sin que tengas que hacer nada — el resumen final indica de qué proveedor vino.
-- El resumen se muestra con formato real (negrita, listas, encabezados) tanto en el popup como en el historial, en vez de texto plano con `**` sueltos.
-- Interfaz con la paleta e identidad visual de Shellpath (Nunito + JetBrains Mono, tema pastel, esquinas redondeadas), vendorizada localmente sin llamadas a fuentes externas.
-- **Modo Estudio**: marca la casilla "+ Flashcards" antes de resumir y, además del resumen, Digest genera 5 preguntas y respuestas sobre el contenido. Botón "Usar flashcards →" abre una pestaña nueva (`study.html`) con una sesión de estudio real: una tarjeta a la vez, revelas la respuesta, te autoevalúas (sabía / no sabía) y al final puedes repetir solo las que fallaste. También exportables a CSV para Anki.
-- **Cola de lectura**: botón "+ Añadir a la cola" (o desde el menú contextual) para guardar una página sin resumirla todavía — el texto se extrae en el momento, así que puedes cerrar la pestaña original. Desde la pestaña "Cola de lectura" del historial la resumes una a una o todas de golpe (procesamiento secuencial, para no saturar el proveedor gratuito de turno).
-- **Exportar a PDF**: botón "Exportar PDF" que abre una vista de impresión limpia (`print.html`) y dispara el diálogo nativo de Chrome — eliges "Guardar como PDF". Texto real y seleccionable, no una captura rasterizada.
-- **Importar PDF**: si la pestaña activa ya está mostrando un PDF, "Resumir página" lo detecta solo y lo procesa (descarga el PDF y extrae el texto con `pdf.js`, sin depender del visor interno de Chrome). También puedes importar cualquier PDF de tu equipo con el botón "📄 Importar PDF…" del popup, sin necesidad de tenerlo abierto en ninguna pestaña.
+| Popup (inicio) | Popup (resumen generado) |
+|---|---|
+| ![Popup al abrir la extensión](screenshots/popup-inicio.png) | ![Popup con un resumen generado](screenshots/popup-resultado.png) |
+
+| Opciones — añadir proveedor | Opciones — lista de proveedores |
+|---|---|
+| ![Formulario para añadir un proveedor](screenshots/opciones-configurador.png) | ![Lista de proveedores configurados con fallback](screenshots/opciones-proveedores.png) |
+
+**Opciones — tipos de resumen personalizables**
+
+![Gestión de tipos de resumen personalizables](screenshots/opciones-tipos-resumen.png)
+
+| Historial | Cola de lectura |
+|---|---|
+| ![Historial de resúmenes](screenshots/historial.png) | ![Cola de lectura](screenshots/cola.png) |
+
+## Índice
+
+- [Instalación](#instalación-modo-desarrollador)
+- [Resumir contenido](#resumir-contenido)
+- [Modo Estudio (flashcards)](#modo-estudio-flashcards)
+- [Cola de lectura](#cola-de-lectura)
+- [Proveedores de IA y fallback automático](#proveedores-de-ia-y-fallback-automático)
+- [Exportar](#exportar)
+- [Historial](#historial)
+- [Privacidad y permisos](#privacidad-y-permisos)
+- [Solución de problemas](#solución-de-problemas)
+- [Roadmap](#roadmap)
+- [Licencia](#licencia)
 
 ## Instalación (modo desarrollador)
 
-Como Mirage, esta extensión no está en la Chrome Web Store — se instala manualmente:
+Esta extensión no está en la Chrome Web Store — se instala manualmente, como cualquier proyecto en desarrollo:
 
 1. Clona este repositorio.
 2. Ve a `chrome://extensions`.
 3. Activa "Modo de desarrollador" (interruptor arriba a la derecha).
 4. Pulsa "Cargar descomprimida" y selecciona la carpeta del proyecto.
-5. Abre Opciones (icono ⚙️ en el popup), elige tu proveedor de IA y pega tu API key.
+5. Abre Opciones (icono ⚙️ en el popup), añade un proveedor de IA (ver [más abajo](#proveedores-de-ia-y-fallback-automático)) y pega tu API key.
+
+## Resumir contenido
+
+Tres formas de entrada, todas con el mismo resultado — un resumen que puedes guardar, exportar o convertir en flashcards:
+
+- **Página completa**: botón "▶ Resumir página". Extrae el contenido con [Readability.js](https://github.com/mozilla/readability) (la misma librería del modo lectura de Firefox), así que ignora menús, anuncios y barras laterales y se queda con el artículo real.
+- **Selección de texto**: botón "✂️ Selección". Resume solo el texto que tengas seleccionado en la página.
+- **PDF**: si la pestaña activa ya muestra un PDF, "Resumir página" lo detecta solo. También puedes importar cualquier PDF de tu equipo con el botón "📄 PDF" sin necesidad de abrirlo antes en el navegador. Ver [detalle técnico](#cómo-funciona-la-importación-de-pdf).
+
+También disponible desde el menú contextual (clic derecho) sin tener que abrir el popup: "Resumir selección con Digest" y "Resumir esta página con Digest".
+
+**Tipo de resumen**, elegible en un desplegable antes de generar. De serie trae seis: **Breve** (1-2 frases), **Medio** (bullets con los puntos clave), **Extenso** (estructurado por secciones), **Narrativo** (párrafo fluido sin listas), **TL;DR** (una frase) y **Pros y contras**. La lista es totalmente personalizable desde Opciones → "Tipos de resumen": puedes editar el nombre y las instrucciones de cada uno, añadir los tuyos propios, reordenarlos, borrarlos o restaurar los valores por defecto — el mismo desplegable se usa en el popup y en la cola de lectura. El resumen se muestra con formato real — negrita, listas, encabezados — en vez de texto plano con `**` sueltos de por medio.
+
+## Modo Estudio (flashcards)
+
+Activa el interruptor "+ Flashcards" antes de resumir y, además del resumen, Digest genera **5 preguntas y respuestas** sobre el contenido (mismo proveedor de IA que respondió el resumen).
+
+Pulsa "Usar flashcards →" y se abre una pestaña de estudio dedicada (`study.html`) con una sesión real, no solo una lista:
+
+- Una tarjeta a la vez, con animación de giro al revelar la respuesta (clic o barra espaciadora).
+- Autoevaluación "😊 La sabía" / "😕 No la sabía" tras cada una.
+- Barra de progreso y resumen final con el recuento.
+- Botón "Repetir solo las falladas" para un segundo pase centrado en lo que fallaste.
+
+Las flashcards también se pueden exportar a **CSV** listo para importar en Anki (`pregunta;respuesta`), tanto desde el popup justo después de generarlas como desde cualquier entrada del historial.
+
+## Cola de lectura
+
+Para cuando encuentras algo interesante pero no quieres pararte a resumirlo en ese momento: botón "🕒 Cola" en el popup (o "Añadir página a la cola de Digest" en el menú contextual) guarda el título, la URL y el texto ya extraído — así puedes cerrar la pestaña original sin perder nada.
+
+Desde la pestaña "Cola de lectura" del historial (`history.html`, o el enlace "Ver cola" del popup):
+
+- Resume un elemento suelto con "Resumir ahora".
+- O procesa toda la cola de golpe con "Procesar toda la cola" — uno detrás de otro, no en paralelo, para no disparar de golpe el límite de peticiones de un proveedor gratuito.
+
+## Proveedores de IA y fallback automático
+
+Opciones guarda una **lista** de proveedores, no uno solo. Añade los que quieras y reordénalos con las flechas ↑/↓ — el primero de la lista es el que se intenta primero. Si da un error (saturación, límite de peticiones, key inválida...), Digest prueba automáticamente el siguiente **sin que tengas que hacer nada**, y el resumen final indica de qué proveedor vino la respuesta.
+
+Puedes desactivar un proveedor temporalmente sin borrarlo (botón "Desactivar" en su tarjeta) — útil si, por ejemplo, no quieres que se use el de pago salvo que los gratuitos fallen todos.
 
 ### Proveedores soportados de serie
+
+Al elegir uno en el formulario de Opciones, el endpoint y el modelo se rellenan solos — solo hace falta pegar la API key. Botón "Probar conexión" para validar antes de guardar.
 
 | Proveedor | Coste | Necesita API key | Dónde conseguirla |
 |---|---|---|---|
 | OpenAI | De pago | Sí | platform.openai.com/api-keys |
-| Google Gemini | Gratis (tier gratuito generoso) | Sí | aistudio.google.com/apikey |
-| Groq | Gratis, el más rápido de los gratuitos | Sí | console.groq.com/keys |
-| OpenRouter | Gratis (modelos con sufijo `:free`) | Sí | openrouter.ai/keys |
-| Ollama (modelo local) | Gratis, corre en tu equipo | No | Instala [Ollama](https://ollama.com) y descarga un modelo, p. ej. `ollama pull llama3.1` |
+| Google Gemini | Gratis (tier generoso) | Sí | aistudio.google.com/apikey |
+| Groq | Gratis, el más rápido | Sí | console.groq.com/keys |
+| OpenRouter | Gratis (modelos `:free`) | Sí | openrouter.ai/keys |
+| Ollama (local) | Gratis, corre en tu equipo | No | Instala [Ollama](https://ollama.com) y descarga un modelo, p. ej. `ollama pull llama3.1` |
 | Personalizado | Depende | Depende | Cualquier API compatible con `chat/completions` de OpenAI |
 
-Al elegir un proveedor en el formulario de Opciones, el endpoint y el modelo se rellenan automáticamente (editable en "Ajustes avanzados" si hace falta). Usa **Probar conexión** antes de guardar para confirmar que funciona.
+Combo recomendado para no pagar nada y no quedarte nunca sin servicio: Gemini como principal, Groq y OpenRouter como respaldo.
 
-### Varios proveedores y fallback
+## Exportar
 
-En vez de una única configuración, Opciones guarda una **lista** de proveedores. Añade los que quieras (por ejemplo Gemini como principal y Groq + OpenRouter como respaldo) y reordénalos con las flechas ↑/↓ — el primero de la lista es el que se intenta primero. Si da un error (saturación, rate limit, key inválida...), Digest prueba automáticamente el siguiente sin que tengas que hacer nada, y el resumen final indica de qué proveedor vino la respuesta. Puedes desactivar un proveedor temporalmente sin borrarlo (botón "Desactivar" en su tarjeta) si por ejemplo no quieres que se use el de pago salvo que los gratuitos fallen todos.
+Cada resumen se puede sacar de Digest en el formato que necesites, desde el popup o desde el historial:
 
-### Solución de problemas
+- **Markdown** (`.md`) con frontmatter YAML (título, URL, fecha, longitud) — listo para pegar en Obsidian o cualquier otro sistema de notas. Incluye las flashcards si las generaste.
+- **PDF**: botón "Exportar PDF" — abre una vista de impresión limpia y dispara directamente el diálogo "Guardar como PDF" de Chrome, sin pasos intermedios. Texto real y seleccionable, no una captura rasterizada (no se usa jsPDF/html2canvas a propósito, por calidad).
+- **CSV para Anki** (si hay flashcards): `pregunta;respuesta`, importable directamente.
+- **JSON** del historial completo, desde la página de historial.
 
-- **Error 404 "model is no longer available"**: el proveedor renombró o retiró ese modelo (le pasó a Gemini con la línea `2.5-*`, sustituida por `3.5-*`/`3.6-*` en 2026). Entra en "Ajustes avanzados" y pon el nombre de modelo vigente — consulta la documentación del proveedor si no lo sabes.
-- **Error 503 "currently experiencing high demand" / "UNAVAILABLE"**: no es un problema de configuración, es el proveedor saturado en ese momento. Reintenta en un rato o cambia de proveedor mientras tanto.
-- **Error 401 "incorrect API key"**: normalmente significa que la key es de un proveedor distinto al endpoint seleccionado (por ejemplo, una key de Gemini contra el endpoint de OpenAI). Revisa que el proveedor elegido coincida con la key que has pegado.
-- **Error 429 "rate limit"**: has superado el límite de peticiones por minuto/día del tier gratuito. Espera o cambia de proveedor.
+## Historial
 
-## Por qué pide permisos tan amplios
+Todo resumen generado queda guardado localmente (`chrome.storage.local`, nunca sale de tu equipo salvo que tú lo exportes). Desde `history.html`:
 
-El `manifest.json` declara `host_permissions` sobre `https://*/*` y `http://*/*`. Es necesario porque Digest tiene que poder extraer el contenido de **cualquier** página que decidas resumir — no solo un dominio concreto. El content script no hace nada por sí solo: únicamente se ejecuta cuando tú pulsas "Resumir página" o usas el menú contextual, nunca en segundo plano ni sin tu acción explícita.
+- Buscador por título o dominio.
+- Ver/ocultar el resumen completo de cada entrada.
+- Reexportar (Markdown, PDF, Anki) sin tener que volver a resumir.
+- Badges que indican de qué proveedor vino la respuesta y si el contenido era un PDF.
+- Borrado individual o completo.
 
-## Privacidad
+## Privacidad y permisos
 
-- Cero telemetría propia. Nada sale de tu máquina salvo la llamada que tú configures al proveedor de IA que elijas.
-- Historial, configuración y todo lo demás vive en `chrome.storage.local` — solo en tu equipo.
-- El código es legible y auditable: no hay build step ni dependencias empaquetadas más allá de Readability.js (vendorizada en `vendor/`, licencia Apache 2.0).
+- **Cero telemetría propia.** Nada sale de tu máquina salvo la llamada que tú configures al proveedor de IA que elijas — esa es la única petición de red que hace Digest más allá de descargar el propio PDF cuando corresponde.
+- Historial, cola, configuración: todo en `chrome.storage.local`, solo en tu equipo.
+- Código legible y auditable, sin build step. Dependencias vendorizadas localmente, ninguna se carga desde un CDN en tiempo de ejecución (ver [Licencia](#licencia)).
+- **Por qué `host_permissions` es tan amplio** (`https://*/*`, `http://*/*`): Digest tiene que poder extraer contenido de cualquier página que decidas resumir, no solo un dominio fijo. El content script no hace nada por sí solo — únicamente se ejecuta cuando pulsas "Resumir página" o usas el menú contextual, nunca en segundo plano ni sin tu acción explícita.
+
+### Cómo funciona la importación de PDF
+
+Dos detalles técnicos por si algo falla y quieres entender por qué:
+
+- El visor de PDF integrado de Chrome no permite inyectar content scripts (por seguridad), así que en vez de leer su DOM, Digest descarga el PDF directamente (`fetch`) y extrae el texto con [`pdf.js`](https://mozilla.github.io/pdf.js/) (la misma librería de Mozilla).
+- El service worker de la extensión no tiene DOM, y `pdf.js` lo necesita — por eso la extracción real corre en un **documento offscreen** (`chrome.offscreen`), invisible, creado bajo demanda solo para ese propósito.
+
+## Solución de problemas
+
+- **Error 404 "model is no longer available"**: el proveedor renombró o retiró ese modelo (le pasó a Gemini con la línea `2.5-*`, sustituida por `3.5-*`/`3.6-*` en 2026). Entra en "Ajustes avanzados" del proveedor y pon el nombre vigente.
+- **Error 503 "high demand" / "UNAVAILABLE"**: el proveedor está saturado, no es un problema de configuración. Reintenta en un rato o deja que el fallback pruebe el siguiente proveedor de tu lista.
+- **Error 401 "incorrect API key"**: normalmente la key es de un proveedor distinto al que tienes seleccionado (p. ej. una key de Gemini contra el endpoint de OpenAI). Revisa que coincidan.
+- **Error 429 "rate limit"**: superaste el límite de peticiones del tier gratuito. Espera o cambia de proveedor.
+- **"No se pudo procesar el PDF"**: prueba primero con un PDF sencillo (sin escaneo/imagen pura — Digest lee texto, no hace OCR). Si el PDF está protegido con contraseña, no se podrá leer.
 
 ## Roadmap
 
-Fase 2 completa. Ver la nota de proyecto en el vault para el detalle de Fase 3: importar Word, resumen combinado de varias páginas a la vez, quiz interactivo, trazabilidad, texto a voz y traducción.
+Fases 1 y 2 completas. Ver la nota de proyecto en el vault para el detalle de Fase 3: importar Word, resumen combinado de varias páginas a la vez, quiz interactivo, trazabilidad de fuentes, texto a voz y traducción.
 
 ## Licencia
 
-MIT — ver [LICENSE](LICENSE). Readability.js se distribuye bajo Apache 2.0 (ver cabecera del archivo en `vendor/Readability.js`). Tipografías vendorizadas en `vendor/fonts/`: Nunito (SIL Open Font License) y JetBrains Mono (Apache 2.0). `pdf.js` (Mozilla) vendorizado en `vendor/pdfjs/`, licencia Apache 2.0.
+MIT — ver [LICENSE](LICENSE).
+
+Librerías vendorizadas en `vendor/` (sin llamadas a CDN en tiempo de ejecución):
+
+| Librería | Uso | Licencia |
+|---|---|---|
+| [Readability.js](https://github.com/mozilla/readability) (Mozilla) | Extracción de contenido de páginas web | Apache 2.0 |
+| [pdf.js](https://mozilla.github.io/pdf.js/) (Mozilla) | Extracción de texto de PDFs | Apache 2.0 |
+| [marked](https://github.com/markedjs/marked) | Render de Markdown en el resumen | MIT |
+| Nunito | Tipografía de interfaz | SIL Open Font License |
+| JetBrains Mono | Tipografía monoespaciada (código, URLs) | Apache 2.0 |

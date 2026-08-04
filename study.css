@@ -96,14 +96,45 @@ h1 {
 }
 
 .card {
-  min-height: 160px;
+  min-height: 190px;
+  perspective: 1200px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  gap: 14px;
-  padding: 20px 10px;
+  gap: 12px;
+  padding: 20px 14px;
+  border-radius: var(--dg-radius-sm);
+}
+
+.card-front {
+  background: var(--dg-white);
+}
+
+.card-back {
+  background: var(--dg-bg-soft);
+  transform: rotateY(180deg);
 }
 
 .card-label {
@@ -120,10 +151,7 @@ h1 {
   line-height: 1.5;
 }
 
-.card-answer {
-  padding-top: 14px;
-  margin-top: 4px;
-  border-top: 1px dashed var(--dg-border);
+.card-back .card-text {
   font-weight: 400;
   font-size: 15px;
   color: var(--dg-ink);

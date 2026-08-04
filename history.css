@@ -265,16 +265,27 @@ button:disabled {
   accent-color: var(--dg-accent);
 }
 
-.length-selector-inline {
+.type-selector-inline {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
 }
 
-.length-selector-inline label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.type-selector-inline label {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.type-selector-inline select {
+  padding: 6px 8px;
+  border-radius: var(--dg-radius-sm);
+  border: 1px solid var(--dg-border);
+  background: var(--dg-white);
+  color: var(--dg-ink);
+  font-family: var(--dg-font-ui);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 

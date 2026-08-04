@@ -79,7 +79,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   padding: 9px 11px;
   border: 1px solid var(--dg-border);
   border-radius: var(--dg-radius-sm);
@@ -88,6 +89,16 @@ select {
   font-family: var(--dg-font-ui);
   background: var(--dg-bg);
   color: var(--dg-ink);
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+textarea:focus {
+  outline: 2px solid var(--dg-accent);
+  outline-offset: 1px;
 }
 
 input.mono {

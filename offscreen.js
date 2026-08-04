@@ -15,7 +15,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   (async () => {
     try {
-      const text = await extractText(message.buffer);
+      const bytes = base64ToUint8Array(message.base64);
+      const text = await extractText(bytes);
       sendResponse({ ok: true, text });
     } catch (err) {
       sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -25,14 +26,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // respuesta async
 });
 
-async function extractText(arrayBuffer) {
+function base64ToUint8Array(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function extractText(uint8Array) {
   if (!window.pdfjsLib) throw new Error("pdf.js no se cargó correctamente.");
 
   // isEvalSupported: false — el CSP de la extensión (script-src 'self', sin
   // 'unsafe-eval') bloquearía el atajo de rendimiento que pdf.js intenta
   // usar por defecto para ciertas fuentes; con esto lo desactiva y usa la
   // ruta sin eval, más lenta pero compatible.
-  const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false });
+  const loadingTask = window.pdfjsLib.getDocument({ data: uint8Array, isEvalSupported: false });
   const pdf = await loadingTask.promise;
 
   const pagesToRead = Math.min(pdf.numPages, MAX_PAGES);

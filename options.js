@@ -72,6 +72,23 @@ const els = {
 let providers = [];
 let editingId = null; // null = modo "añadir"
 
+// ---------- Tipos de resumen ----------
+
+const summaryTypeEls = {
+  list: document.getElementById("summaryTypeList"),
+  emptyMsg: document.getElementById("emptySummaryTypes"),
+  addBtn: document.getElementById("addSummaryTypeBtn"),
+  resetBtn: document.getElementById("resetSummaryTypesBtn"),
+  form: document.getElementById("summaryTypeForm"),
+  formTitle: document.getElementById("summaryTypeFormTitle"),
+  label: document.getElementById("summaryTypeLabel"),
+  instruction: document.getElementById("summaryTypeInstruction"),
+  cancelBtn: document.getElementById("cancelSummaryTypeBtn"),
+};
+
+let summaryTypes = [];
+let editingSummaryTypeIdx = null; // null = modo "añadir"
+
 init();
 
 async function init() {
@@ -86,6 +103,118 @@ async function init() {
   // endpoint/modelo por defecto — es una acción explícita del usuario, no
   // debe respetar un valor previo que quedó puesto por el proveedor anterior.
   els.provider.addEventListener("change", () => applyPreset(els.provider.value, /* onlyIfEmpty */ false));
+
+  summaryTypes = await loadSummaryTypes();
+  renderSummaryTypes();
+
+  summaryTypeEls.addBtn.addEventListener("click", () => openSummaryTypeForm(null));
+  summaryTypeEls.cancelBtn.addEventListener("click", closeSummaryTypeForm);
+  summaryTypeEls.form.addEventListener("submit", handleSaveSummaryType);
+  summaryTypeEls.resetBtn.addEventListener("click", handleResetSummaryTypes);
+}
+
+async function loadSummaryTypes() {
+  const response = await chrome.runtime.sendMessage({ type: "digest-get-summary-types" });
+  return (response && response.ok && response.types) || [];
+}
+
+async function persistSummaryTypes() {
+  const response = await chrome.runtime.sendMessage({ type: "digest-save-summary-types", types: summaryTypes });
+  summaryTypes = (response && response.types) || summaryTypes;
+}
+
+function renderSummaryTypes() {
+  summaryTypeEls.list.innerHTML = "";
+  summaryTypeEls.emptyMsg.hidden = summaryTypes.length > 0;
+
+  summaryTypes.forEach((t, idx) => {
+    const li = document.createElement("li");
+    li.className = "provider-card";
+
+    const info = document.createElement("div");
+    info.className = "provider-info";
+    info.innerHTML = `
+      <span class="provider-priority">#${idx + 1}</span>
+      <div>
+        <div class="provider-label">${escapeHtml(t.label)}</div>
+        <div class="provider-model">${escapeHtml((t.instruction || "").slice(0, 90))}${t.instruction && t.instruction.length > 90 ? "…" : ""}</div>
+      </div>
+    `;
+
+    const actions = document.createElement("div");
+    actions.className = "provider-actions";
+
+    const upBtn = mkBtn("↑", () => moveSummaryType(idx, -1), idx === 0);
+    const downBtn = mkBtn("↓", () => moveSummaryType(idx, 1), idx === summaryTypes.length - 1);
+    const editBtn = mkBtn("Editar", () => openSummaryTypeForm(idx));
+    const deleteBtn = mkBtn("Eliminar", () => removeSummaryType(idx), false, true);
+
+    actions.append(upBtn, downBtn, editBtn, deleteBtn);
+    li.append(info, actions);
+    summaryTypeEls.list.appendChild(li);
+  });
+}
+
+function moveSummaryType(idx, delta) {
+  const target = idx + delta;
+  if (target < 0 || target >= summaryTypes.length) return;
+  [summaryTypes[idx], summaryTypes[target]] = [summaryTypes[target], summaryTypes[idx]];
+  persistSummaryTypes();
+  renderSummaryTypes();
+}
+
+function removeSummaryType(idx) {
+  if (!confirm(`¿Eliminar el tipo "${summaryTypes[idx].label}"?`)) return;
+  summaryTypes.splice(idx, 1);
+  persistSummaryTypes();
+  renderSummaryTypes();
+}
+
+function openSummaryTypeForm(idx) {
+  editingSummaryTypeIdx = idx === null ? null : idx;
+  summaryTypeEls.form.hidden = false;
+  summaryTypeEls.formTitle.textContent = idx === null ? "Añadir tipo de resumen" : "Editar tipo de resumen";
+
+  if (idx === null) {
+    summaryTypeEls.label.value = "";
+    summaryTypeEls.instruction.value = "";
+  } else {
+    const t = summaryTypes[idx];
+    summaryTypeEls.label.value = t.label || "";
+    summaryTypeEls.instruction.value = t.instruction || "";
+  }
+
+  summaryTypeEls.form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeSummaryTypeForm() {
+  summaryTypeEls.form.hidden = true;
+  editingSummaryTypeIdx = null;
+}
+
+async function handleSaveSummaryType(e) {
+  e.preventDefault();
+  const label = summaryTypeEls.label.value.trim();
+  const instruction = summaryTypeEls.instruction.value.trim();
+  if (!label || !instruction) return;
+
+  if (editingSummaryTypeIdx === null) {
+    summaryTypes.push({ id: `t-${Date.now()}`, label, instruction });
+  } else {
+    const existing = summaryTypes[editingSummaryTypeIdx];
+    summaryTypes[editingSummaryTypeIdx] = { id: existing.id, label, instruction };
+  }
+
+  await persistSummaryTypes();
+  renderSummaryTypes();
+  closeSummaryTypeForm();
+}
+
+async function handleResetSummaryTypes() {
+  if (!confirm("¿Restaurar los tipos de resumen por defecto? Se perderán los tipos personalizados que hayas creado.")) return;
+  const response = await chrome.runtime.sendMessage({ type: "digest-save-summary-types", types: [] });
+  summaryTypes = (response && response.types) || [];
+  renderSummaryTypes();
 }
 
 async function loadProviders() {

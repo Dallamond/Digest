@@ -58,4 +58,13 @@ async function init() {
   }
 
   els.printBtn.addEventListener("click", () => window.print());
+
+  // Si se abrió desde el popup con ?auto=1, disparamos el diálogo de
+  // impresión solos — así el usuario no tiene que hacer un clic extra en
+  // esta página intermedia antes de llegar al diálogo de "Guardar como PDF".
+  // El botón "Guardar como PDF" se deja visible igualmente por si lo cierra
+  // sin querer y necesita repetirlo.
+  if (params.get("auto") === "1") {
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  }
 }

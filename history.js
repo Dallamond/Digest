@@ -22,6 +22,7 @@ const els = {
   emptyQueue: document.getElementById("emptyQueueMsg"),
   queueWantFlashcards: document.getElementById("queueWantFlashcards"),
   processAllBtn: document.getElementById("processAllBtn"),
+  queueSummaryType: document.getElementById("queueSummaryType"),
 };
 
 let history = [];
@@ -30,7 +31,7 @@ let queue = [];
 init();
 
 async function init() {
-  await Promise.all([loadHistory(), loadQueue()]);
+  await Promise.all([loadHistory(), loadQueue(), loadSummaryTypes()]);
   renderHistory(history);
   renderQueue();
 
@@ -139,7 +140,7 @@ function renderHistory(entries) {
 
     const exportPdfLink = document.createElement("a");
     exportPdfLink.className = "button-link";
-    exportPdfLink.href = `print.html?id=${encodeURIComponent(entry.id)}`;
+    exportPdfLink.href = `print.html?id=${encodeURIComponent(entry.id)}&auto=1`;
     exportPdfLink.target = "_blank";
     exportPdfLink.textContent = "Exportar PDF";
 
@@ -260,9 +261,21 @@ async function loadQueue() {
   queue = Array.isArray(digestQueue) ? digestQueue : [];
 }
 
-function getQueueLength() {
-  const checked = document.querySelector('input[name="queueLength"]:checked');
-  return checked ? checked.value : "medio";
+async function loadSummaryTypes() {
+  const response = await chrome.runtime.sendMessage({ type: "digest-get-summary-types" });
+  const types = (response && response.ok && response.types) || [];
+  els.queueSummaryType.innerHTML = "";
+  types.forEach((t) => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.label;
+    els.queueSummaryType.appendChild(opt);
+  });
+  if (types.some((t) => t.id === "medio")) els.queueSummaryType.value = "medio";
+}
+
+function getQueueSummaryType() {
+  return els.queueSummaryType.value || (els.queueSummaryType.options[0] && els.queueSummaryType.options[0].value) || "medio";
 }
 
 function renderQueue() {
@@ -336,7 +349,7 @@ async function processQueueItem(id, btn, switchOnSuccess) {
     const response = await chrome.runtime.sendMessage({
       type: "digest-queue-process",
       id,
-      length: getQueueLength(),
+      summaryTypeId: getQueueSummaryType(),
       wantFlashcards: els.queueWantFlashcards.checked,
     });
 

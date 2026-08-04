@@ -64,59 +64,98 @@ header button:hover {
   background: var(--dg-sage);
 }
 
-.length-selector {
+.type-selector {
   display: flex;
-  background: var(--dg-white);
-  border: 1px solid var(--dg-border);
-  border-radius: var(--dg-radius-sm);
-  padding: 3px;
-  margin-bottom: 12px;
-  gap: 3px;
-}
-
-.length-selector label {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.type-selector label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: 0.65;
+}
+
+.type-selector select {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--dg-radius-sm);
+  border: 1px solid var(--dg-border);
+  background: var(--dg-white);
+  color: var(--dg-ink);
+  font-family: var(--dg-font-ui);
+  font-size: 13px;
   font-weight: 600;
-  padding: 6px 4px;
-  border-radius: 5px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.length-selector input {
-  display: none;
-}
-
-.length-selector label:has(input:checked) {
-  background: var(--dg-accent);
-  color: white;
-}
+/* ---------- Toggle "+ Flashcards" ---------- */
 
 .flash-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   cursor: pointer;
 }
 
-.flash-toggle input {
-  accent-color: var(--dg-accent);
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 4px;
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
 }
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--dg-border);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked ~ .switch-track {
+  background: var(--dg-accent);
+}
+
+.switch input:checked ~ .switch-track .switch-thumb {
+  transform: translateX(14px);
+}
+
+.flash-toggle-sub {
+  font-weight: 400;
+  opacity: 0.65;
+}
+
+/* ---------- Botones y acciones ---------- */
 
 button {
   padding: 10px 12px;
@@ -150,12 +189,53 @@ button:disabled {
   cursor: default;
 }
 
+.primary-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.secondary-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--dg-bg-soft);
+  border-color: transparent;
+}
+
+.btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ---------- Estado / spinner ---------- */
+
 #status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: var(--dg-ink);
   background: var(--dg-bg-soft);
   border-radius: var(--dg-radius-sm);
-  padding: 8px 10px;
+  padding: 9px 10px;
   margin: 10px 0;
   line-height: 1.4;
 }
@@ -163,6 +243,22 @@ button:disabled {
 #status.error {
   color: var(--dg-error);
   background: var(--dg-error-bg);
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: 2px solid rgba(125, 122, 161, 0.25);
+  border-top-color: var(--dg-accent);
+  border-radius: 50%;
+  animation: dg-spin 0.7s linear infinite;
+}
+
+@keyframes dg-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 #result {

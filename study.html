@@ -28,9 +28,16 @@
     </div>
 
     <div id="card" class="card">
-      <div class="card-label" id="cardLabel">Pregunta</div>
-      <div id="cardQuestion" class="card-text"></div>
-      <div id="cardAnswer" class="card-text card-answer" hidden></div>
+      <div id="cardInner" class="card-inner">
+        <div class="card-face card-front">
+          <div class="card-label">Pregunta</div>
+          <div id="cardQuestion" class="card-text"></div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-label">Respuesta</div>
+          <div id="cardAnswer" class="card-text"></div>
+        </div>
+      </div>
     </div>
 
     <div id="revealRow" class="button-row">

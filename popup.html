@@ -15,27 +15,44 @@
   </header>
 
   <section id="controls">
-    <div class="length-selector">
-      <label><input type="radio" name="length" value="breve" /> Breve</label>
-      <label><input type="radio" name="length" value="medio" checked /> Medio</label>
-      <label><input type="radio" name="length" value="extenso" /> Extenso</label>
+    <div class="type-selector">
+      <label for="summaryType">Tipo de resumen</label>
+      <select id="summaryType"></select>
     </div>
 
     <label class="flash-toggle">
-      <input type="checkbox" id="wantFlashcards" />
-      + Flashcards (Modo Estudio)
+      <span class="switch">
+        <input type="checkbox" id="wantFlashcards" />
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </span>
+      <span class="flash-toggle-label">+ Flashcards <span class="flash-toggle-sub">(Modo Estudio)</span></span>
     </label>
 
-    <div class="actions">
-      <button id="summarizePage" class="primary">Resumir página</button>
-      <button id="summarizeSelection">Resumir selección</button>
-      <button id="addToQueue">+ Añadir a la cola</button>
-      <button id="importPdfBtn">📄 Importar PDF…</button>
+    <button id="summarizePage" class="primary primary-action">
+      <span class="btn-icon">▶</span> Resumir página
+    </button>
+
+    <div class="actions-grid">
+      <button id="summarizeSelection" class="secondary-action">
+        <span class="btn-icon">✂️</span>
+        <span>Selección</span>
+      </button>
+      <button id="addToQueue" class="secondary-action">
+        <span class="btn-icon">🕒</span>
+        <span>Cola</span>
+      </button>
+      <button id="importPdfBtn" class="secondary-action">
+        <span class="btn-icon">📄</span>
+        <span>PDF</span>
+      </button>
       <input type="file" id="pdfFileInput" accept="application/pdf" hidden />
     </div>
   </section>
 
-  <section id="status" hidden></section>
+  <section id="status" hidden>
+    <span id="statusSpinner" class="spinner" hidden></span>
+    <span id="statusText"></span>
+  </section>
 
   <section id="result" hidden>
     <div class="result-meta">

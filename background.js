@@ -13,12 +13,44 @@ const DEFAULT_PROVIDER = {
   enabled: true,
 };
 
-const LENGTH_INSTRUCTIONS = {
-  breve: "Resume el texto en 1-2 frases como máximo. Ve directo a la idea principal, sin rodeos.",
-  medio: "Resume el texto en 4-6 bullets con los puntos clave, cada uno de una frase.",
-  extenso:
-    "Haz un resumen estructurado y más completo del texto, respetando en la medida de lo posible las secciones o el orden original del contenido. Usa subtítulos cortos en negrita si el contenido tiene partes claramente diferenciadas, y bullets dentro de cada una.",
-};
+// Tipos de resumen por defecto — el usuario puede editar, reordenar, añadir
+// o quitar estos desde Opciones (se guardan en `digestSummaryTypes`). Esta
+// lista solo se usa para sembrar el storage la primera vez.
+const DEFAULT_SUMMARY_TYPES = [
+  {
+    id: "breve",
+    label: "Breve",
+    instruction: "Resume el texto en 1-2 frases como máximo. Ve directo a la idea principal, sin rodeos.",
+  },
+  {
+    id: "medio",
+    label: "Medio",
+    instruction: "Resume el texto en 4-6 bullets con los puntos clave, cada uno de una frase.",
+  },
+  {
+    id: "extenso",
+    label: "Extenso",
+    instruction:
+      "Haz un resumen estructurado y más completo del texto, respetando en la medida de lo posible las secciones o el orden original del contenido. Usa subtítulos cortos en negrita si el contenido tiene partes claramente diferenciadas, y bullets dentro de cada una.",
+  },
+  {
+    id: "narrativo",
+    label: "Narrativo",
+    instruction:
+      "Escribe el resumen como un párrafo (o dos como mucho) narrativo y fluido, sin bullets ni listas, como si se lo explicaras a alguien en una conversación.",
+  },
+  {
+    id: "tldr",
+    label: "TL;DR",
+    instruction: "Resume el texto en una sola frase, la más corta posible que capture la idea central. No superes las 25 palabras.",
+  },
+  {
+    id: "pros_contras",
+    label: "Pros y contras",
+    instruction:
+      "Identifica y resume los argumentos o puntos a favor y en contra que aparezcan en el texto (o ventajas/inconvenientes, según encaje mejor), organizados en dos listas separadas con los encabezados 'A favor' y 'En contra'.",
+  },
+];
 
 const FLASHCARD_COUNT = 5;
 
@@ -40,7 +72,16 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Añadir página a la cola de Digest",
     contexts: ["page"],
   });
+
+  seedSummaryTypesIfNeeded();
 });
+
+async function seedSummaryTypesIfNeeded() {
+  const { digestSummaryTypes } = await chrome.storage.local.get("digestSummaryTypes");
+  if (!Array.isArray(digestSummaryTypes) || digestSummaryTypes.length === 0) {
+    await chrome.storage.local.set({ digestSummaryTypes: DEFAULT_SUMMARY_TYPES });
+  }
+}
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) return;
@@ -57,7 +98,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const source = info.menuItemId === "digest-summarize-selection" ? "selection" : "page";
 
   try {
-    const result = await runSummarize(tab.id, source, "medio", false);
+    const result = await runSummarize(tab.id, source, "medio", false); // "medio" = tipo por defecto para el menú contextual
     await chrome.storage.session.set({ digestPending: result });
   } catch (err) {
     await chrome.storage.session.set({
@@ -89,7 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ ok: false, error: "No se encontró la pestaña activa." });
           return;
         }
-        const result = await runSummarize(tab.id, message.source, message.length, !!message.wantFlashcards);
+        const result = await runSummarize(tab.id, message.source, message.summaryTypeId, !!message.wantFlashcards);
         sendResponse(result);
       } catch (err) {
         sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -101,7 +142,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "digest-test-config") {
     (async () => {
       try {
-        await callLLM("Responde solo con la palabra 'ok'.", "breve", message.config);
+        await callLLM("Ping de prueba de Digest.", "Responde solo con la palabra 'ok', nada más.", message.config);
         sendResponse({ ok: true });
       } catch (err) {
         sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -130,7 +171,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "digest-queue-process") {
     (async () => {
       try {
-        const result = await processQueueItem(message.id, message.length, !!message.wantFlashcards);
+        const result = await processQueueItem(message.id, message.summaryTypeId, !!message.wantFlashcards);
         sendResponse(result);
       } catch (err) {
         sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -142,7 +183,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "digest-summarize-pdf-file") {
     (async () => {
       try {
-        const text = await extractPdfText(message.buffer);
+        const text = await extractPdfTextFromBase64(message.base64);
         const extracted = {
           ok: true,
           textContent: text.slice(0, 20000),
@@ -150,11 +191,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           url: "",
           kind: "pdf",
         };
-        const result = await summarizeExtracted(extracted, "pdf-file", message.length, !!message.wantFlashcards);
+        const result = await summarizeExtracted(extracted, "pdf-file", message.summaryTypeId, !!message.wantFlashcards);
         sendResponse(result);
       } catch (err) {
         sendResponse({ ok: false, error: `No se pudo leer el PDF: ${String(err && err.message ? err.message : err)}` });
       }
+    })();
+    return true;
+  }
+
+  if (message.type === "digest-get-summary-types") {
+    (async () => {
+      const types = await getSummaryTypes();
+      sendResponse({ ok: true, types });
+    })();
+    return true;
+  }
+
+  if (message.type === "digest-save-summary-types") {
+    (async () => {
+      const types = Array.isArray(message.types) && message.types.length > 0 ? message.types : DEFAULT_SUMMARY_TYPES;
+      await chrome.storage.local.set({ digestSummaryTypes: types });
+      sendResponse({ ok: true, types });
     })();
     return true;
   }
@@ -164,15 +222,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ---------- Lógica principal: resumen ----------
 
-async function runSummarize(tabId, source, length, wantFlashcards) {
+async function runSummarize(tabId, source, summaryTypeId, wantFlashcards) {
   const extracted = await extractFromTab(tabId, source);
   if (!extracted.ok) {
     return { ok: false, error: extracted.error || "No se pudo extraer contenido de la página." };
   }
-  return summarizeExtracted(extracted, source, length, wantFlashcards);
+  return summarizeExtracted(extracted, source, summaryTypeId, wantFlashcards);
 }
 
-async function summarizeExtracted(extracted, source, length, wantFlashcards) {
+async function summarizeExtracted(extracted, source, summaryTypeId, wantFlashcards) {
   if (!extracted.textContent || extracted.textContent.trim().length < 20) {
     return {
       ok: false,
@@ -188,13 +246,16 @@ async function summarizeExtracted(extracted, source, length, wantFlashcards) {
     return { ok: false, error: "No tienes ningún proveedor de IA configurado. Ve a Opciones para añadir uno." };
   }
 
+  const types = await getSummaryTypes();
+  const type = types.find((t) => t.id === summaryTypeId) || types[0];
+
   const attempts = [];
   let summary = null;
   let usedProvider = null;
 
   for (const provider of providers) {
     try {
-      summary = await callLLM(extracted.textContent, length, provider);
+      summary = await callLLM(extracted.textContent, type.instruction, provider);
       usedProvider = provider;
       break;
     } catch (err) {
@@ -224,7 +285,8 @@ async function summarizeExtracted(extracted, source, length, wantFlashcards) {
     url: extracted.url || "",
     source,
     kind: extracted.kind || "html",
-    length,
+    length: type.label,
+    summaryTypeId: type.id,
     summary,
     flashcards,
     flashcardsError,
@@ -284,7 +346,7 @@ async function extractPdfFromUrl(url, fallbackTitle) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`No se pudo descargar el PDF (${res.status}).`);
     const buffer = await res.arrayBuffer();
-    const text = await extractPdfText(buffer);
+    const text = await extractPdfTextFromBase64(arrayBufferToBase64(buffer));
     return {
       ok: true,
       textContent: text.slice(0, 20000),
@@ -334,17 +396,30 @@ async function ensureOffscreenDocument() {
   creatingOffscreen = null;
 }
 
-async function extractPdfText(arrayBuffer) {
+// El mensaje va como base64 (string) y no como ArrayBuffer/Uint8Array
+// directamente: chrome.runtime.sendMessage no serializa de forma fiable
+// tipos binarios entre distintos contextos de la extensión (popup,
+// background, documento offscreen) — con string no hay ambigüedad posible.
+async function extractPdfTextFromBase64(base64) {
   await ensureOffscreenDocument();
-  const response = await chrome.runtime.sendMessage({ type: "digest-offscreen-extract-pdf", buffer: arrayBuffer });
+  const response = await chrome.runtime.sendMessage({ type: "digest-offscreen-extract-pdf", base64 });
   if (!response || !response.ok) {
     throw new Error((response && response.error) || "No se pudo extraer texto del PDF.");
   }
   return response.text;
 }
 
-async function callLLM(text, length, config) {
-  const instruction = LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medio;
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000; // evita "Maximum call stack size exceeded" con PDFs grandes
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function callLLM(text, instruction, config) {
   const systemPrompt =
     "Eres un asistente que resume contenido web con precisión, sin inventar datos ni añadir opiniones propias. Responde siempre en el mismo idioma del texto original. Puedes usar Markdown (negrita, listas) cuando ayude a la claridad.";
   const userPrompt = `${instruction}\n\n---\n\n${text}`;
@@ -452,14 +527,14 @@ async function addToQueue(tabId) {
   return item;
 }
 
-async function processQueueItem(id, length, wantFlashcards) {
+async function processQueueItem(id, summaryTypeId, wantFlashcards) {
   const { digestQueue } = await chrome.storage.local.get("digestQueue");
   const queue = Array.isArray(digestQueue) ? digestQueue : [];
   const item = queue.find((q) => q.id === id);
   if (!item) return { ok: false, error: "Ese elemento ya no está en la cola." };
 
   const extracted = { ok: true, textContent: item.textContent, title: item.title, url: item.url, kind: item.kind || "html" };
-  const result = await summarizeExtracted(extracted, "page", length, wantFlashcards);
+  const result = await summarizeExtracted(extracted, "page", summaryTypeId, wantFlashcards);
 
   if (result.ok) {
     const remaining = queue.filter((q) => q.id !== id);
@@ -494,6 +569,17 @@ async function getProviders() {
   }
 
   return [];
+}
+
+// Devuelve la lista de tipos de resumen configurados, sembrando el storage
+// con los valores por defecto si todavía no hay ninguno guardado.
+async function getSummaryTypes() {
+  const { digestSummaryTypes } = await chrome.storage.local.get("digestSummaryTypes");
+  if (Array.isArray(digestSummaryTypes) && digestSummaryTypes.length > 0) {
+    return digestSummaryTypes;
+  }
+  await chrome.storage.local.set({ digestSummaryTypes: DEFAULT_SUMMARY_TYPES });
+  return DEFAULT_SUMMARY_TYPES;
 }
 
 async function saveHistoryEntry(entry) {

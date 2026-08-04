@@ -75,6 +75,42 @@
     <hr />
 
     <section>
+      <h2>Tipos de resumen</h2>
+      <p class="hint">
+        Personaliza las opciones que aparecen en el desplegable del popup y de
+        la cola. Cada tipo tiene un nombre corto y unas instrucciones que se
+        envían al modelo tal cual.
+      </p>
+      <ul id="summaryTypeList" class="provider-list"></ul>
+      <p id="emptySummaryTypes" class="hint" hidden>No queda ningún tipo de resumen — se restaurarán los valores por defecto.</p>
+      <div class="form-actions">
+        <button type="button" id="addSummaryTypeBtn" class="primary">+ Añadir tipo de resumen</button>
+        <button type="button" id="resetSummaryTypesBtn">Restaurar valores por defecto</button>
+      </div>
+    </section>
+
+    <form id="summaryTypeForm" class="provider-form" hidden>
+      <h3 id="summaryTypeFormTitle">Añadir tipo de resumen</h3>
+
+      <label>
+        Nombre
+        <input type="text" id="summaryTypeLabel" placeholder="p. ej. Con datos y cifras" />
+      </label>
+
+      <label>
+        Instrucciones para el modelo
+        <textarea id="summaryTypeInstruction" rows="4" placeholder="p. ej. Resume el texto centrándote en cifras, fechas y datos concretos, en una lista breve."></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" id="saveSummaryTypeBtn" class="primary">Guardar tipo</button>
+        <button type="button" id="cancelSummaryTypeBtn">Cancelar</button>
+      </div>
+    </form>
+
+    <hr />
+
+    <section>
       <h2>Privacidad</h2>
       <p class="hint">
         Digest no envía telemetría ni datos a ningún servidor propio. La única

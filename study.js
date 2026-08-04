@@ -13,7 +13,7 @@ const els = {
   progressText: document.getElementById("progressText"),
 
   card: document.getElementById("card"),
-  cardLabel: document.getElementById("cardLabel"),
+  cardInner: document.getElementById("cardInner"),
   cardQuestion: document.getElementById("cardQuestion"),
   cardAnswer: document.getElementById("cardAnswer"),
 
@@ -88,8 +88,7 @@ function renderCard() {
 
   els.cardQuestion.textContent = card.q;
   els.cardAnswer.textContent = card.a;
-  els.cardAnswer.hidden = true;
-  els.cardLabel.textContent = "Pregunta";
+  els.cardInner.classList.remove("flipped");
 
   els.revealRow.hidden = false;
   els.assessRow.hidden = true;
@@ -100,8 +99,7 @@ function renderCard() {
 }
 
 function reveal() {
-  els.cardAnswer.hidden = false;
-  els.cardLabel.textContent = "Respuesta";
+  els.cardInner.classList.add("flipped");
   els.revealRow.hidden = true;
   els.assessRow.hidden = false;
 }
