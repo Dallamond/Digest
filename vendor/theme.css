@@ -1,0 +1,103 @@
+/* Digest — tema compartido, inspirado en la paleta de Shellpath
+   (03 - PROYECTOS TEC/Shellpath/Especificación Visual (Fase 2).md) */
+
+@font-face {
+  font-family: "Nunito";
+  src: url("fonts/Nunito-Variable.woff2") format("woff2-variations"), url("fonts/Nunito-Variable.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/JetBrainsMono-Variable.woff2") format("woff2-variations"), url("fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+}
+
+:root {
+  /* Paleta oficial Shellpath, reutilizada para coherencia entre proyectos */
+  --dg-bg: #f7f5ef;
+  --dg-bg-soft: #e6f0e9;
+  --dg-sage: #cfe7d7;
+  --dg-teal: #a6d1c6;
+  --dg-accent: #7d7aa1;
+  --dg-ink: #4b5563;
+
+  --dg-white: #ffffff;
+  --dg-border: #dde3de;
+  --dg-error: #b42318;
+  --dg-error-bg: #fef3f2;
+  --dg-success: #15803d;
+
+  --dg-font-ui: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --dg-font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --dg-radius: 14px;
+  --dg-radius-sm: 8px;
+  --dg-shadow: 0 1px 2px rgba(75, 85, 99, 0.06), 0 4px 14px rgba(75, 85, 99, 0.09);
+}
+
+/* ---------- Render de Markdown compartido (resumen + historial) ---------- */
+
+.md-content p {
+  margin: 0 0 8px;
+}
+
+.md-content p:last-child {
+  margin-bottom: 0;
+}
+
+.md-content ul,
+.md-content ol {
+  margin: 4px 0 10px;
+  padding-left: 20px;
+}
+
+.md-content li {
+  margin-bottom: 3px;
+}
+
+.md-content strong {
+  font-weight: 800;
+  color: var(--dg-ink);
+}
+
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4 {
+  font-size: 1em;
+  font-weight: 800;
+  margin: 10px 0 4px;
+}
+
+.md-content h1:first-child,
+.md-content h2:first-child,
+.md-content h3:first-child {
+  margin-top: 0;
+}
+
+.md-content code {
+  font-family: var(--dg-font-mono);
+  background: var(--dg-bg-soft);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.md-content a {
+  color: var(--dg-accent);
+}
+
+/* ---------- Badge de proveedor (qué IA respondió) ---------- */
+
+.provider-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dg-accent);
+  background: var(--dg-bg-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}

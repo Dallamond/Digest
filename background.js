@@ -1,0 +1,255 @@
+// Digest — background.js (service worker)
+// Orquesta: extracción de contenido de la pestaña activa, llamada al LLM
+// configurado por el usuario (con fallback entre varios proveedores si hay
+// más de uno guardado), e historial local. Sin backend propio.
+
+const DEFAULT_PROVIDER = {
+  provider: "openai",
+  label: "OpenAI",
+  endpoint: "https://api.openai.com/v1/chat/completions",
+  apiKey: "",
+  model: "gpt-4o-mini",
+  enabled: true,
+};
+
+const LENGTH_INSTRUCTIONS = {
+  breve: "Resume el texto en 1-2 frases como máximo. Ve directo a la idea principal, sin rodeos.",
+  medio: "Resume el texto en 4-6 bullets con los puntos clave, cada uno de una frase.",
+  extenso:
+    "Haz un resumen estructurado y más completo del texto, respetando en la medida de lo posible las secciones o el orden original del contenido. Usa subtítulos cortos en negrita si el contenido tiene partes claramente diferenciadas, y bullets dentro de cada una.",
+};
+
+// ---------- Menú contextual ----------
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "digest-summarize-selection",
+    title: "Resumir selección con Digest",
+    contexts: ["selection"],
+  });
+  chrome.contextMenus.create({
+    id: "digest-summarize-page",
+    title: "Resumir esta página con Digest",
+    contexts: ["page"],
+  });
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab || !tab.id) return;
+  const source = info.menuItemId === "digest-summarize-selection" ? "selection" : "page";
+
+  try {
+    const result = await runSummarize(tab.id, source, "medio");
+    await chrome.storage.session.set({ digestPending: result });
+  } catch (err) {
+    await chrome.storage.session.set({
+      digestPending: { ok: false, error: String(err && err.message ? err.message : err) },
+    });
+  }
+
+  // Intenta abrir el popup automáticamente (requiere gesto de usuario reciente,
+  // el propio clic del menú contextual cuenta). Si el navegador no lo soporta,
+  // el resultado ya queda guardado en session storage y el popup lo recoge
+  // en cuanto el usuario lo abra manualmente.
+  try {
+    await chrome.action.openPopup();
+  } catch (err) {
+    // Silencioso a propósito — no es crítico.
+  }
+});
+
+// ---------- Mensajería con el popup / opciones ----------
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message) return false;
+
+  if (message.type === "digest-summarize") {
+    (async () => {
+      try {
+        const tab = await getActiveTab();
+        if (!tab || !tab.id) {
+          sendResponse({ ok: false, error: "No se encontró la pestaña activa." });
+          return;
+        }
+        const result = await runSummarize(tab.id, message.source, message.length);
+        sendResponse(result);
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
+      }
+    })();
+    return true; // respuesta async
+  }
+
+  if (message.type === "digest-test-config") {
+    (async () => {
+      try {
+        await callLLM("Responde solo con la palabra 'ok'.", "breve", message.config);
+        sendResponse({ ok: true });
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
+      }
+    })();
+    return true; // respuesta async
+  }
+
+  return false;
+});
+
+// ---------- Lógica principal ----------
+
+async function runSummarize(tabId, source, length) {
+  const extracted = await extractFromTab(tabId, source);
+  if (!extracted.ok) {
+    return { ok: false, error: extracted.error || "No se pudo extraer contenido de la página." };
+  }
+  if (!extracted.textContent || extracted.textContent.trim().length < 20) {
+    return {
+      ok: false,
+      error:
+        source === "selection"
+          ? "No hay texto seleccionado (o es demasiado corto)."
+          : "No se pudo extraer suficiente texto de esta página.",
+    };
+  }
+
+  const providers = (await getProviders()).filter((p) => p.enabled !== false);
+  if (providers.length === 0) {
+    return { ok: false, error: "No tienes ningún proveedor de IA configurado. Ve a Opciones para añadir uno." };
+  }
+
+  const attempts = [];
+  let summary = null;
+  let usedProvider = null;
+
+  for (const provider of providers) {
+    try {
+      summary = await callLLM(extracted.textContent, length, provider);
+      usedProvider = provider;
+      break;
+    } catch (err) {
+      attempts.push(`${provider.label || provider.provider}: ${String(err && err.message ? err.message : err)}`);
+    }
+  }
+
+  if (!summary) {
+    const detail = attempts.length ? `\n\n${attempts.join("\n")}` : "";
+    return {
+      ok: false,
+      error: `Todos los proveedores configurados fallaron.${detail}`,
+    };
+  }
+
+  const entry = {
+    id: `${Date.now()}`,
+    date: new Date().toISOString(),
+    title: extracted.title || "(sin título)",
+    url: extracted.url || "",
+    source,
+    length,
+    summary,
+    providerLabel: usedProvider.label || usedProvider.provider,
+    fallbackUsed: attempts.length > 0,
+  };
+  await saveHistoryEntry(entry);
+
+  return { ok: true, entry };
+}
+
+async function extractFromTab(tabId, source) {
+  if (source === "selection") {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const text = window.getSelection ? window.getSelection().toString() : "";
+        return {
+          ok: true,
+          textContent: text.slice(0, 20000),
+          title: document.title || "",
+          url: location.href,
+        };
+      },
+    });
+    return result;
+  }
+
+  // source === "page": inyectamos Readability + el wrapper, y luego
+  // invocamos la función global que define para poder recoger su retorno.
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["vendor/Readability.js", "content-script.js"],
+  });
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => window.__digestExtractArticle(),
+  });
+  return result;
+}
+
+async function callLLM(text, length, config) {
+  const instruction = LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medio;
+  const systemPrompt =
+    "Eres un asistente que resume contenido web con precisión, sin inventar datos ni añadir opiniones propias. Responde siempre en el mismo idioma del texto original. Puedes usar Markdown (negrita, listas) cuando ayude a la claridad.";
+  const userPrompt = `${instruction}\n\n---\n\n${text}`;
+
+  const headers = { "Content-Type": "application/json" };
+  if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
+
+  const res = await fetch(config.endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: config.model || DEFAULT_PROVIDER.model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => "");
+    throw new Error(`Error ${res.status}: ${bodyText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Respuesta del modelo vacía o con formato inesperado.");
+  return content.trim();
+}
+
+// ---------- Storage helpers ----------
+
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+// Devuelve la lista de proveedores configurados, en orden de prioridad
+// (el primero es el que se intenta primero). Migra automáticamente el
+// formato antiguo de config única (`digestConfig`) a la lista nueva
+// (`digestProviders`) la primera vez que se llama tras la actualización.
+async function getProviders() {
+  const { digestProviders, digestConfig } = await chrome.storage.local.get(["digestProviders", "digestConfig"]);
+
+  if (Array.isArray(digestProviders) && digestProviders.length > 0) {
+    return digestProviders;
+  }
+
+  if (digestConfig && digestConfig.endpoint) {
+    const migrated = [{ ...DEFAULT_PROVIDER, ...digestConfig, id: "migrated-1", enabled: true }];
+    await chrome.storage.local.set({ digestProviders: migrated });
+    return migrated;
+  }
+
+  return [];
+}
+
+async function saveHistoryEntry(entry) {
+  const { digestHistory } = await chrome.storage.local.get("digestHistory");
+  const history = Array.isArray(digestHistory) ? digestHistory : [];
+  history.unshift(entry);
+  // Rotación simple: nos quedamos con las últimas 200 entradas.
+  const trimmed = history.slice(0, 200);
+  await chrome.storage.local.set({ digestHistory: trimmed });
+}

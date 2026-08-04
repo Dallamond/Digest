@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Digest</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Digest</h1>
+    </div>
+    <button id="openOptions" title="Opciones" aria-label="Opciones">⚙️</button>
+  </header>
+
+  <section id="controls">
+    <div class="length-selector">
+      <label><input type="radio" name="length" value="breve" /> Breve</label>
+      <label><input type="radio" name="length" value="medio" checked /> Medio</label>
+      <label><input type="radio" name="length" value="extenso" /> Extenso</label>
+    </div>
+
+    <div class="actions">
+      <button id="summarizePage" class="primary">Resumir página</button>
+      <button id="summarizeSelection">Resumir selección</button>
+    </div>
+  </section>
+
+  <section id="status" hidden></section>
+
+  <section id="result" hidden>
+    <div class="result-meta">
+      <strong id="resultTitle"></strong>
+      <a id="resultUrl" href="#" target="_blank" rel="noopener"></a>
+      <span id="resultProvider" class="provider-badge" hidden></span>
+    </div>
+    <div id="resultText" class="md-content"></div>
+    <div class="result-actions">
+      <button id="copyBtn">Copiar</button>
+      <button id="exportMdBtn">Exportar .md</button>
+    </div>
+  </section>
+
+  <footer>
+    <a id="viewHistory" href="history.html" target="_blank">Ver historial</a>
+  </footer>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

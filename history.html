@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Digest — Historial</title>
+  <link rel="stylesheet" href="history.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="brand-dot"></span>
+      <h1>Historial de resúmenes</h1>
+    </div>
+    <div class="header-actions">
+      <button id="exportAllBtn">Exportar todo (JSON)</button>
+      <button id="clearBtn" class="danger">Borrar historial</button>
+    </div>
+  </header>
+
+  <input id="searchInput" type="search" placeholder="Buscar por título o dominio…" />
+
+  <ul id="historyList"></ul>
+  <p id="emptyMsg" hidden>Todavía no has resumido nada.</p>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>
